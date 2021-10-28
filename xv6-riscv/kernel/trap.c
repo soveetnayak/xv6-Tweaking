@@ -77,7 +77,8 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+
+  if(which_dev == 2 && return_scheduler_no()!=1)
     yield();
 
   usertrapret();
@@ -164,12 +165,12 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  update_time(); //proc.c
   wakeup(&ticks);
   release(&tickslock);
 }
 
-// check if it's an external interrupt or software interrupt,
-// and handle it.
+// check if it's an external interrupt or software interrupt and handle it.
 // returns 2 if timer interrupt,
 // 1 if other device,
 // 0 if not recognized.

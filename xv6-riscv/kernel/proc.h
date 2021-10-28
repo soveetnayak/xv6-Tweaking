@@ -92,8 +92,10 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
-
+  
+  int create_time;             // Time of process creation
   // wait_lock must be held when using this:
+  
   struct proc *parent;         // Parent process
 
   // these are private to the process, so p->lock need not be held.
@@ -105,4 +107,16 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int mask;                    // Mask for tracing syscalls
+  
+  uint c_time;                 // Time of process creation
+  uint run_time;
+  uint exit_time;               // Time of process exit
+
+  uint sleep_time;             // Time to sleep
+  uint ready_time;   
+
+  uint nrun;
+
+  uint priority;
 };
