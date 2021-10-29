@@ -5,7 +5,9 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-int scheduler_no = -1; // 0 = RR, 1 = FCFS, 2 = PBS, 3 = MLFQ
+
+int scheduler_no = -1;
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -47,7 +49,7 @@ void proc_mapstacks(pagetable_t kpgtbl)
 void procinit(void)
 {
   struct proc *p;
-  
+
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
   for (p = proc; p < &proc[NPROC]; p++)
@@ -540,6 +542,19 @@ int return_scheduler_no()
 //    via swtch back to the scheduler.
 void scheduler(void)
 {
+#ifdef RR
+  scheduler_no = 0; // 0 = RR, 1 = FCFS, 2 = PBS, 3 = MLFQ
+#endif
+#ifdef FCFS
+  scheduler_no = 1; // 0 = RR, 1 = FCFS, 2 = PBS, 3 = MLFQ
+#endif
+#ifdef PBS
+  scheduler_no = 2; // 0 = RR, 1 = FCFS, 2 = PBS, 3 = MLFQ
+#endif
+#ifdef MLFQ
+  scheduler_no = 3; // 0 = RR, 1 = FCFS, 2 = PBS, 3 = MLFQ
+#endif
+
   struct proc *p;
   struct cpu *c = mycpu();
   //int lowest_time = -1;
@@ -551,71 +566,32 @@ void scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
     //For finding the process with the lowest creation time
-    // for (p = proc; p < &proc[NPROC]; p++)
-    // {
-    //   acquire(&p->lock);
-    //   if (p->pid > 1)
-    //   {
-    //     if (p->state == RUNNABLE)
-    //     {
-    //       if (p->c_time < lowest_time || lowest_time == -1)
-    //       {
-    //         lowest_time = p->c_time;
-    //         //        lowest_proc = p;
-    //       }
-    //     }
-    //     else
-    //     {
-    //       release(&p->lock);
-    //     }
-    //   }
-    // }
+
+    int min_check = -1;
+    struct proc *minP;
 
     for (p = proc; p < &proc[NPROC]; p++)
     {
 #ifdef FCFS
-      scheduler_no = 1;
+      // scheduler_no = 1;
       acquire(&p->lock);
-      struct proc *minP = 0;
-
-      if (p->state != RUNNABLE)
-        continue;
-
-      // ignore init and sh processes from FCFS
-      if (p->pid > 1)
-      {
-        if (minP != 0)
-        {
-          // here I find the process with the lowest creation time (the first one that was created)
-          if (p->ctime < minP->ctime)
-            minP = p;
-        }
-        else
-          minP = p;
-      }
-
-      // If I found the process which I created first and it is runnable I run it
-      //(in the real FCFS I should not check if it is runnable, but for testing purposes I have to make this control, otherwise every time I launch
-      // a process which does I/0 operation (every simple command) everything will be blocked
-      if (minP != 0 && minP->state == RUNNABLE)
-        p = minP;
       if (p->state == RUNNABLE)
-        {
-          // Switch to chosen process.  It is the process's job
-          // to release its lock and then reacquire it
-          // before jumping back to us.
-          p->state = RUNNING;
-          p->nrun += 1;
-          c->proc = p;
-          swtch(&c->context, &p->context);
+      {
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        p->state = RUNNING;
+        p->nrun += 1;
+        c->proc = p;
+        swtch(&c->context, &p->context);
 
-          // Process is done running for now.
-          // It should have changed its p->state before coming back.
-          c->proc = 0;
-        }
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
       release(&p->lock);
 
-#else
+#endif
 #ifdef PBS
       acquire(&p->lock);
       if (p->state == RUNNABLE)
@@ -633,7 +609,7 @@ void scheduler(void)
       }
       release(&p->lock);
 
-#else
+#endif
 #ifdef MLFQ
       acquire(&p->lock);
       if (p->state == RUNNABLE)
@@ -650,9 +626,9 @@ void scheduler(void)
         c->proc = 0;
       }
       release(&p->lock);
-
-#else
-      scheduler_no = 0;
+#endif
+#ifdef RR
+      // scheduler_no = 7;
       acquire(&p->lock);
       if (p->state == RUNNABLE)
       {
@@ -669,8 +645,6 @@ void scheduler(void)
       }
       release(&p->lock);
 
-#endif
-#endif
 #endif
     }
   }
@@ -858,7 +832,8 @@ void procdump(void)
   char *state;
 
   printf("\n");
-
+  int val = return_scheduler_no();
+  printf("Scheduler: %d\n", val);
   for (p = proc; p < &proc[NPROC]; p++)
   {
     if (p->state == UNUSED)
@@ -867,11 +842,10 @@ void procdump(void)
       state = states[p->state];
     else
       state = "???";
-    int val = return_scheduler_no();
-    printf("Scheduler: %d\n", val);
-    uint rtime=0, wtime=0;
+
+    uint rtime = 0, wtime = 0;
     //waitx(0, &wtime, &rtime);
-    printf("%d %s %s %d %d %d", p->pid, state, p->name,rtime, wtime, p->nrun);
+    printf("%d %s %s %d %d %d", p->pid, state, p->name, rtime, wtime, p->nrun);
     printf("\n");
   }
 }

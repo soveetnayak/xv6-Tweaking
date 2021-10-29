@@ -50,20 +50,17 @@ endif
 
 QEMU = qemu-system-riscv64
 
-# ifndef SCHEDULER
-# SCHEDULER := RR
+# SCHEDULER_VAL = -D RR
+# ifeq ($(SCHEDULER), FCFS)
+#     SCHEDULER_VAL = -D FCFS
+# endif
+# ifeq ($(SCHEDULER), PBS)
+#     SCHEDULER_VAL = -D PBS
+# endif
+# ifeq ($(SCHEDULER), MLFQ)
+#     SCHEDULER_VAL = -D MLFQ
 # endif
 
-SCHEDULER_VAL := RR
-ifeq ($(SCHEDULER),FCFS)
-    SCHEDULER_VAL=$(SCHEDULER)
-endif
-ifeq ($(SCHEDULER),PBS)
-    SCHEDULER_VAL=$(SCHEDULER)
-endif
-ifeq ($(SCHEDULER),MLFQ)
-    SCHEDULER_VAL=$(SCHEDULER)
-endif
 
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
@@ -77,8 +74,7 @@ CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-CFLAGS += "-D$(SCHEDULER_VAL)"
-
+CFLAGS += $(SCHEDULER_VAL)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
@@ -150,7 +146,6 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_strace\
-	$U/_time\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -189,4 +184,3 @@ qemu-gdb: $K/kernel .gdbinit fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
-all: @echo Scheduler is $(SCHEDULER)
