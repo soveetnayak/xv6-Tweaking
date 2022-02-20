@@ -2,6 +2,3 @@
 ## Enhancing xv6 OS
 ## Operating Systems and Networks
 
-
-### Specification 1: syscall tracing
-
